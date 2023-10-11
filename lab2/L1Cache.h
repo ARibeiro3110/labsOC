@@ -7,6 +7,11 @@
 #include <stdint.h>
 #include "Cache.h"
 
+#define OFFSET_BITS 6
+#define INDEX_BITS 8
+#define INDEX_MASK 0b11111111000000                   // mask for the index
+#define TAG_MASK 0b11111111111111111100000000000000   // mask for the tag
+
 void resetTime();
 
 uint32_t getTime();
@@ -27,7 +32,7 @@ typedef struct CacheLine {
 
 typedef struct Cache {
   uint32_t init;
-  CacheLine line;
+  CacheLine line[L1_SIZE / BLOCK_SIZE];
 } Cache;
 
 /*********************** Interfaces *************************/
