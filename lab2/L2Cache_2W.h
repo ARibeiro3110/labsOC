@@ -1,5 +1,5 @@
-#ifndef L1CACHE_H
-#define L1CACHE_H
+#ifndef L2CACHE_1W_H
+#define L2CACHE_1W_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +18,7 @@ void accessDRAM(uint32_t, uint8_t *, uint32_t);
 
 void initCache();
 void accessL1(uint32_t, uint8_t *, uint32_t);
+void accessL2(uint32_t, uint8_t *, uint32_t);
 
 typedef struct CacheLine {
   uint8_t Valid;
@@ -25,10 +26,20 @@ typedef struct CacheLine {
   uint32_t Tag;
 } CacheLine;
 
-typedef struct Cache {
+typedef struct CacheSet {
+  CacheLine line[L2_SET_SIZE];
+  uint8_t lru;
+} CacheSet;
+
+typedef struct CacheL1 {
   uint32_t init;
   CacheLine line[L1_LINES];
-} Cache;
+} CacheL1;
+
+typedef struct CacheL2 {
+  uint32_t init;
+  CacheSet set[L2_SETS];
+} CacheL2;
 
 /*********************** Interfaces *************************/
 
