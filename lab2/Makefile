@@ -21,4 +21,3 @@ t:
 	diff results.txt results_L2_1W.txt
 	./L2Cache_2W > results.txt
 	diff results.txt results_L2_2W.txt
-	make clean

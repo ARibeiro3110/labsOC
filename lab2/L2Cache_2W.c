@@ -110,7 +110,7 @@ void accessL2(uint32_t address, uint8_t *data, uint32_t mode) {
       L2.set[i].lru = 0;
     }
     L2.init = 1;
-  }
+  } 
 
   index = (address & INDEX_MASK_2W) >> OFFSET_BITS; // remove the offset and the tag
 
