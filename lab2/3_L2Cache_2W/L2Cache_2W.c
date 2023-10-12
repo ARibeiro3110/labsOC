@@ -1,4 +1,4 @@
-#include "L2Cache_1W.h"
+#include "L2Cache_2W.h"
 
 uint8_t L1Cache[L1_SIZE];
 uint8_t L2Cache[L2_SIZE];
@@ -52,13 +52,12 @@ void accessL1(uint32_t address, uint8_t *data, uint32_t mode) {
 
   Tag = address >> (INDEX_BITS_1W + OFFSET_BITS); // isolate tag from address
 
-  MemAddress = address >> OFFSET_BITS;
-  MemAddress <<= OFFSET_BITS; // address of the block in memory
+  MemAddress = address & ~OFFSET_MASK; // address of the block in memory
 
   /* access Cache*/
   int position = address & ~TAG_MASK_1W;
 
-  if (!Line->Valid || Line->Tag != Tag) { // if block not present - miss
+  if (!Line->Valid || Line->Tag != Tag) {         // if block not present - miss
     accessL2(MemAddress, TempBlock, MODE_READ); // get new block from L2
 
     if ((Line->Valid) && (Line->Dirty)) { // line has dirty block
@@ -105,49 +104,68 @@ void accessL2(uint32_t address, uint8_t *data, uint32_t mode) {
 
   /* init cache */
   if (L2.init == 0) {
-    for (int i = 0; i < L2_LINES; i++)
-      L2.line[i].Valid = 0;
-    
+    for (int i = 0; i < L2_SETS; i++) {
+      L2.set[i].line[0].Valid = 0;
+      L2.set[i].line[1].Valid = 0;
+      L2.set[i].lru = 0;
+    }
     L2.init = 1;
-  }
+  } 
 
-  index = (address & INDEX_MASK_1W) >> OFFSET_BITS; // remove the offset and the tag
+  index = (address & INDEX_MASK_2W) >> OFFSET_BITS; // remove the offset and the tag
 
-  CacheLine *Line = &L2.line[index];
+  CacheSet *Set = &L2.set[index];
 
-  Tag = address >> (INDEX_BITS_1W + OFFSET_BITS); // isolate tag from address
+  Tag = address >> (INDEX_BITS_2W + OFFSET_BITS); // isolate tag from address
 
-  MemAddress = address >> OFFSET_BITS;
-  MemAddress <<= OFFSET_BITS; // address of the block in memory
+  MemAddress = address & ~OFFSET_MASK; // address of the block in memory
 
   /* access Cache*/
-  int position = address & ~TAG_MASK_1W;
+  int position = address & ~TAG_MASK_2W;
 
-  if (!Line->Valid || Line->Tag != Tag) {         // if block not present - miss
+  int target_line = -1;
+  int hit = 0;
+  for (int i = 0; i < L2_SET_SIZE; i++) {
+    if (Set->line[i].Valid == 1 && Set->line[i].Tag == Tag) {
+      target_line = i;
+      hit = 1;
+      break;
+    }
+    if (Set->line[i].Valid == 0 && target_line == -1)
+      target_line = i;
+  }
+  if (target_line == -1)
+    target_line = Set->lru;
+  
+  if (!hit) { // if block not present - miss
     accessDRAM(MemAddress, TempBlock, MODE_READ); // get new block from DRAM
 
-    if ((Line->Valid) && (Line->Dirty)) { // line has dirty block
+    if ((Set->line[target_line].Valid) && (Set->line[target_line].Dirty)) { // line has dirty block
       // get address of the block in memory:
-      MemAddress = Line->Tag << INDEX_BITS_1W;
+      MemAddress = Set->line[target_line].Tag;
+      MemAddress <<= INDEX_BITS_2W;
       MemAddress += index;
       MemAddress <<= OFFSET_BITS;
       accessDRAM(MemAddress, &(L2Cache[position]), MODE_WRITE); // then write back old block
     }
 
     memcpy(&(L2Cache[position]), TempBlock, BLOCK_SIZE); // copy new block to cache line
-    Line->Valid = 1;
-    Line->Tag = Tag;
-    Line->Dirty = 0;
+
+    Set->line[target_line].Valid = 1;
+    Set->line[target_line].Tag = Tag;
+    Set->line[target_line].Dirty = 0;
   } // if miss, then replaced with the correct block
 
   if (mode == MODE_READ) {    // read data from cache line
     memcpy(data, &(L2Cache[position]), WORD_SIZE);
     time += L2_READ_TIME;
+    Set->lru = ~target_line;
   }
 
   if (mode == MODE_WRITE) { // write data from cache line
     memcpy(&(L2Cache[position]), data, WORD_SIZE);
     time += L2_WRITE_TIME;
-    Line->Dirty = 1;
+    Set->line[target_line].Dirty = 1;
+    Set->lru = ~target_line;
   }
 }

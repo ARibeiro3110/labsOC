@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "Cache.h"
+#include "../Cache.h"
 
 void resetTime();
 
@@ -26,11 +26,6 @@ typedef struct CacheLine {
   uint32_t Tag;
 } CacheLine;
 
-typedef struct CacheSet {
-  CacheLine line[L2_SET_SIZE];
-  uint8_t lru;
-} CacheSet;
-
 typedef struct CacheL1 {
   uint32_t init;
   CacheLine line[L1_LINES];
@@ -38,7 +33,7 @@ typedef struct CacheL1 {
 
 typedef struct CacheL2 {
   uint32_t init;
-  CacheSet set[L2_SETS];
+  CacheLine line[L2_LINES];
 } CacheL2;
 
 /*********************** Interfaces *************************/
