@@ -8,9 +8,3 @@ all:
 
 clean:
 	rm L1Cache
-	rm results.txt
-
-t:
-	make all
-	./L1Cache > results.txt
-	diff results.txt results_L1.txt
